@@ -1,29 +1,30 @@
 
+
 --
 -- Crafting Environment
 --   by: Ken Cheung
 --
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+local USED_LOCALIZATION_KEYS = {
+"STAT_DAMAGEPERSECOND",
+"STAT_HEALTHPERROUND",
+"STAT_RANGE",
+"STAT_RELOADTIME",
+"STAT_CLIPSIZE",
+"STAT_RATING",
+"STAT_JUMPHEIGHT",
+"STAT_RUNSPEED",
+"STAT_HEALTH",
+"STAT_SPEED",
+"STAT_CONSTRAINTS",
+"STAT_BOOST",
+"STAT_REDUCE",
+"STAT_MAXAMMO",
+"STAT_SPLASHRADIUS",
+"STAT_SPREAD",
+"STAT_DAMAGEPERROUND",
+}
 
 
 require "string";
@@ -48,7 +49,7 @@ require "lib/lib_NavWheel";
 require "lib/lib_WebCache";
 
 
-
+require "lib/lib_Slash"
 
 
 -- CONSTANTS
@@ -63,8 +64,6 @@ local TOOLTIP_DELAY = 0.5
 
 local SECONDSINHOUR = 3600;
 local SECONDSINDAY = 86400;
-
-local OPTIONAL_COMPONENT_TYPE = 1920;
 
 local FRAME			= Component.GetFrame("main");
 local RIGHT_WING	= Component.GetFrame("right_wing")
@@ -82,11 +81,12 @@ local WB_PURCHASEPROMPT_REDBEAN = WB_PURCHASEPROMPT_LAYOUT:GetChild("redbean");
 local WB_PURCHASEPROMPT_REDBEAN_FOCUS = WB_PURCHASEPROMPT_REDBEAN:GetChild("focus");
 local WB_PURCHASEPROMPT_CANCEL = WB_PURCHASEPROMPT_BODY:GetChild("cancel");
 
-local PURCHASE_WORKBENCHES_BTN = Component.GetWidget("purchase_workbenches");
+local PURCHASE_WORKBENCHES = Component.GetWidget("purchase_workbenches");
+local PURCHASE_WORKBENCHES_BTN = nil;
 
 local PURCHASE_VIP = Component.GetWidget("purchase_VIP");
 local PURCHASE_VIP_BTN = nil;
-local VIP_PERK_TIP = Component.GetWidget("VIP_perk_tip");
+--local VIP_PERK_TIP = Component.GetWidget("VIP_perk_tip");
 
 local BG_FRAME		= Component.GetFrame("bg_frame");
 local CHAT_PANEL	= Component.GetWidget("CHAT_PANEL");
@@ -218,8 +218,6 @@ local GEAR_UPDATE = nil;
 local CERT_UPDATE = nil;
 local CFT_CERT_UPDATE = nil;
 
-local WORKBENCH_UPDATE_URL = nil;
-
 INGAME_HOST = "";
 API_HOST = "";
 
@@ -264,7 +262,6 @@ local g_wb_update_attempts = 0;
 local d_last_workbench_update_time = nil;
 local g_purchasing_workbenches = {};
 local g_waiting_for_mark_complete = false;
-local g_waiting_for_workbench_update = false;
 
 local d_InputMenuItems = {}
 local w_InputMenuWidgets = {};
@@ -286,11 +283,10 @@ local d_PlayerCerts = {};
 
 local d_gear_inventory = {}
 local w_CompareWidgets = {};
-local d_ComparableItems = {};
 local g_CompareOffset = 0;
 local d_CompareItemCount = 0;
-local d_compare_item_info = nil;
 
+local d_compare_item_info = nil;
 local g_HideStats = false;
 
 local g_PreviewItem = nil;
@@ -331,9 +327,7 @@ local d_interaction_guid = 0; -- random number generated on open
 
 -- recipe tables
 
-
-
-local d_recipe_tree = { name="Blueprints", id=-1, open=true, children={ } };
+local d_recipe_tree = { name="Blueprints", id=-1, open=true, children={ [0]={ id=0,open=false, name="Misc.", total_count=0, children={} } } };
 
 
 -- EVENTS
@@ -341,175 +335,175 @@ function OnComponentLoad()
 	INGAME_HOST = System.GetOperatorSetting("ingame_host");
 	API_HOST = System.GetOperatorSetting("clientapi_host");
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	--[[
+	LIB_SLASH.BindCallback({slash_list="up_inv", description="update inventory", func=function()
+		log(tostring(d_inventory) )
+		end});
+	
+	LIB_SLASH.BindCallback({slash_list="up_manu", description="update workbenches", func=function()
+		log(tostring(d_workbenches) )
+		end});
+	
+	LIB_SLASH.BindCallback({slash_list="resTb", description="update workbenches", func=function()
+		log(tostring(CFT_GLOBALS.d_resource_types ) )
+		end});	
+	LIB_SLASH.BindCallback({slash_list="rt", description="update workbenches", func=function()
+		--log(tostring(recipe_tables));
+		WebResponseFailure( {status="???", data={message="testing", code = "ERR_UNKNOWN"}}, "ui_testing");
+		end});	
+	
+	LIB_SLASH.BindCallback({slash_list="cft_out", description="update workbenches", func=function()
+			POPUP_TITLE:SetText(Component.LookupText( "CRAFTING_OUTPUT" ));
+			local text = "happy"
+			for i =1, 20 do
+				text = text.."\nhappy"..i;
+			end
+			SetScrollText( text, POPUP_TEXT, POPUP_SCROLL, POPUP_ROW );
+			POPUP_DIALOG:Show();
+		end});		
+		
+	LIB_SLASH.BindCallback({slash_list="cft_err", description="update workbenches", func=function()
+		WebResponseFailure( {data={ code="ERR", message="Indeed"}, status="whatever"}, "Sup Bro" )
+	end});		
+	
+	LIB_SLASH.BindCallback({slash_list="cft_p", description="update workbenches", func=function()
+		WB_PURCHASEPROMPT:Show()
+	end});		
+	
+	
+	LIB_SLASH.BindCallback({slash_list="cft_p", description="update workbenches", func=function()
+		OnPlayerReady();
+	end});
+	
+	LIB_SLASH.BindCallback({slash_list="cft_cert", description="update workbenches", func=function()
+		log( tostring(CFT_GLOBALS.g_recipe_certs))
+	end});		
+	
+	LIB_SLASH.BindCallback({slash_list="cft_hide", description="update workbenches", func=function()
+		FRAME:Hide();
+		BG_FRAME:Hide();
+		RIGHT_WING:Hide();
+		LEFT_WING:Hide();
+		VisualSlotter.Activate(false);
+	end});
+	
+	LIB_SLASH.BindCallback({slash_list="cr", description="craft", func=function()
+		local args = { success=true,
+		  output={ {resource_type="0", quantity=25, item_sdb_id=54003},{resource_type="0", quantity=25, item_sdb_id=54003}, {resource_type="0", quantity=25, item_sdb_id=54003},
+					{resource_type="0", quantity=25, item_sdb_id=54003},{resource_type="0", quantity=25, item_sdb_id=54003}, {resource_type="0", quantity=25, item_sdb_id=54003},
+					{resource_type="0", quantity=25, item_sdb_id=54003},{resource_type="0", quantity=25, item_sdb_id=54003}, {resource_type="0", quantity=25, item_sdb_id=54003},
+					{resource_type="0", quantity=25, item_sdb_id=54003},{resource_type="0", quantity=25, item_sdb_id=54003}, {resource_type="0", quantity=25, item_sdb_id=54003},
+					{resource_type="0", quantity=25, item_sdb_id=54003},{resource_type="0", quantity=25, item_sdb_id=54003}, {resource_type="0", quantity=25, item_sdb_id=54003},
+				}
+		}
+		OnWBUnloadRequestResponse(args);
+	end});
+			
+	LIB_SLASH.BindCallback({slash_list="cr2", description="craft", func=function()
+		local args = { success=true,
+		  output={ 
+					{
+						durability={ pool=5000, current=1000},
+						attribute_modifiers={ [954]=441, [952]=-50.921437, [29]=2.064591 },
+						owner_guid=9152230211399776504,
+						item_id=9179030986069149181,
+						item_sdb_id=77919,
+						quality=841
+					}
+				}
+		}
+		OnWBUnloadRequestResponse(args);
+	end});
+	
+	LIB_SLASH.BindCallback({slash_list="cr3", description="craft", func=function()
+		local args = { success=true,
+		  output={ {resource_type="0", quantity=25, item_sdb_id=54003},{resource_type="0", quantity=25, item_sdb_id=54003}, {resource_type="0", quantity=25, item_sdb_id=54003},
+					{resource_type="0", quantity=25, item_sdb_id=54003},{resource_type="0", quantity=25, item_sdb_id=54003}, {resource_type="0", quantity=25, item_sdb_id=54003},
+					{
+						durability={ pool=5000, current=1000},
+						attribute_modifiers={ [954]=441, [952]=-50.921437, [29]=2.064591 },
+						owner_guid=9152230211399776504,
+						item_id=9179030986069149181,
+						item_sdb_id=77919,
+						quality=841
+					}
+				}
+		}
+		OnWBUnloadRequestResponse(args);
+	end});
+	
+	LIB_SLASH.BindCallback({slash_list="cr4", description="craft", func=function()
+		local args = { success=true,
+			output={
+					{
+						durability={ pool=5218, current=1000},
+						attribute_modifiers={ [956]=7, [954]=498, [29]=2.176834, [952]=-101.689625 },
+						type_code = 244,
+						created_at = 1234,
+						updated_at = 1234,
+						bound_to_owner=false,
+						owner_guid=9152230211399776504,
+						item_id=9179030986069149181,
+						quality=859,
+						item_sdb_id=77948,
+					}
+				},
+			blueprint_id = 80431,
+		}
+		OnWBUnloadRequestResponse(args);
+	end});
+	
+	LIB_SLASH.BindCallback({slash_list="cr5", description="craft", func=function()
+		local args = { success=true,
+			output={
+					{
+						durability={ pool=5218, current=1000},
+						attribute_modifiers={ [956]=7, [954]=498, [952]=-50.906250 },
+						type_code = 244,
+						created_at = 1234,
+						updated_at = 1234,
+						bound_to_owner=false,
+						owner_guid=9152230211399776504,
+						item_id=9179030986069149181,
+						quality=859,
+						item_sdb_id=79166,
+					}
+				},
+			blueprint_id = 80327,
+		}
+		OnWBUnloadRequestResponse(args);
+	end});
+	--]]
+	
+	--[[ tutorial test slash commands
+	LIB_SLASH.BindCallback({slash_list="tut_test1", description="craft", func=function()
+		if (ScriptedTutorial.HasFlag("listen_Unload")) then
+			local args = { output={ {item_sdb_id='81896'}}};
+			ScriptedTutorial.DispatchEvent("OnWorkbenchUnload", args);
+		end
+	end});
+	
+	LIB_SLASH.BindCallback({slash_list="tut_test2", description="craft", func=function()
+		if (ScriptedTutorial.HasFlag("listen_Unload")) then
+			local args = { output={{item_sdb_id='84454'}} };
+			ScriptedTutorial.DispatchEvent("OnWorkbenchUnload", args);
+		end
+	end});
+	
+	LIB_SLASH.BindCallback({slash_list="tut_test2", description="craft", func=function()
+		if (ScriptedTutorial.HasFlag("listen_Unload")) then
+			local args = { output={{item_sdb_id='84454'}} };
+			ScriptedTutorial.DispatchEvent("OnWorkbenchUnload", args);
+		end
+	end});
+	
+	LIB_SLASH.BindCallback({slash_list="tut_test3", description="craft", func=function()
+		if (ScriptedTutorial.HasFlag("listen_Unload")) then
+			local args = { output={{item_sdb_id='77655'}} };
+			ScriptedTutorial.DispatchEvent("OnWorkbenchUnload", args);
+		end
+	end});
+	--]]	
 
 	VisualSlotter.OnSubmit = OnBGSelect;
 	VisualSlotter.OnBack = OnBGSelect;
@@ -630,9 +624,9 @@ function OnComponentLoad()
 	WB_PURCHASEPROMPT_CANCEL:SetTextKey("CRAFTING_CANCEL_PURCHASE", true);
 	WB_PURCHASEPROMPT_CANCEL:TintPlate(Button.DEFAULT_RED_COLOR);
 	
-	PURCHASE_WORKBENCHES_BTN = Button.Create(PURCHASE_WORKBENCHES_BTN);
+	PURCHASE_WORKBENCHES_BTN = Button.Create(PURCHASE_WORKBENCHES);
 	PURCHASE_WORKBENCHES_BTN:Bind( OpenWorkbenchPurchaseScreen );
-	PURCHASE_WORKBENCHES_BTN:Autosize("right");
+	PURCHASE_WORKBENCHES_BTN:Autosize("left");
 	PURCHASE_WORKBENCHES_BTN:SetTextKey("CRAFTING_PURCHASE_WB_TITLE", true);
 	
 	REFINE_BUTTON = Button.Create(REFINE_BUTTON);
@@ -742,7 +736,6 @@ function OnComponentLoad()
 	
 	
 	function SliderButton_Hold(value)
-		cb_HoldSliderButton = nil;
 		IncrementParallelBuildCount(value);
 		cb_HoldSliderButton = callback(SliderButton_Hold, value, 0.0625)
 	end
@@ -785,7 +778,7 @@ function OnComponentLoad()
 	parallel_inc:BindEvent("OnMouseLeave", Slider_MouseUp );
 	
 	ResizeWingGroups();
-	VisualSlotter.LockZoom(0)
+	VisualSlotter.LockZoom(true)
 	
 	CRAFT_TIP:SetTextKey("CRAFTING_RCP_SELECT_TT")
 end
@@ -806,10 +799,10 @@ function ResizeWingGroups()
 	
 	local scale = 0.175 * g_screen_ratio;
 	local RIGHT_ANCHOR = RIGHT_WING:GetAnchor();
-	RIGHT_ANCHOR:BindToScreen();
-	RIGHT_ANCHOR:SetParam("translation", {x=1.0,y=-0.11,z=4});
+	--RIGHT_ANCHOR:BindToScreen();
+	--RIGHT_ANCHOR:SetParam("translation", {x=1.0,y=-0.11,z=4});
 	--RIGHT_ANCHOR:SetParam("translation", {x=0,y=0,z=2.7});
-	--RIGHT_ANCHOR:SetParam("translation", {x=2.05,y=-1.5,z=2.7});
+	RIGHT_ANCHOR:SetParam("translation", {x=2.05,y=-1.5,z=2.7});
 	RIGHT_ANCHOR:SetParam("rotation", {axis={x=0.0,y=0,z=1}, angle=22.5});
 	RIGHT_ANCHOR:SetParam("scale", {x=scale,y=scale,z=scale});
 	
@@ -826,21 +819,20 @@ function ResizeWingGroups()
 
 	local num_wb = math.max( math.floor(height*0.4/WORKBENCH_ENTRY_HEIGHT),1);
 	WORKBENCHES:SetDims( "right:0%; top:"..(height*0.1+50).."; width:"..width..";height:"..num_wb * WORKBENCH_ENTRY_HEIGHT);
-	local purchase_top = height*0.1 + 8 + num_wb * WORKBENCH_ENTRY_HEIGHT
+	local purchase_top = height*0.1 + 400
 
-	PURCHASE_WORKBENCHES_BTN:SetDims("height:_; top:"..purchase_top);
-	if( not PURCHASE_VIP_BTN ) then
-		PURCHASE_VIP_BTN = Button.Create(PURCHASE_VIP);
-		PURCHASE_VIP_BTN:Bind( OnShowVIPProgram );
-		PURCHASE_VIP_BTN:Autosize("right");
-		PURCHASE_VIP_BTN:SetTextKey("GO_VIP", true);
-		PURCHASE_VIP_BTN:Pulse( true, {tint="#F0F000", freq=1.25})
-		PURCHASE_VIP_BTN:TintPlate(Button.DEFAULT_YELLOW_COLOR);
-	end
-	PURCHASE_VIP:SetDims("height:_; top:"..purchase_top+48);
+	PURCHASE_WORKBENCHES:SetDims("height:_; top:"..purchase_top);
+	
+	PURCHASE_VIP_BTN = Button.Create(PURCHASE_VIP);
+	PURCHASE_VIP_BTN:Bind( OnShowVIPProgram );
+	PURCHASE_VIP_BTN:Autosize("left");
+	PURCHASE_VIP_BTN:SetTextKey("GO_VIP", true);
+	PURCHASE_VIP_BTN:TintPlate(Button.DEFAULT_YELLOW_COLOR);
+	PURCHASE_VIP:SetDims("height:_; top:"..purchase_top);
+	--top:"..purchase_top+48"
 	
 	local vip_purchase_bounds = PURCHASE_VIP_BTN:GetBounds();
-	VIP_PERK_TIP:SetDims("right:0%-"..(vip_purchase_bounds.width+8).."; width:"..(292-vip_purchase_bounds.width).."; top:"..purchase_top+48)
+	--VIP_PERK_TIP:SetDims("right:0%-"..(vip_purchase_bounds.width+8).."; width:"..(292-vip_purchase_bounds.width).."; top:"..purchase_top+48)
 	
 	-- left wing
 	local top = -screen_height * 0.4;
@@ -881,8 +873,6 @@ function OnPlayerReady()
 	local name, faction, race, sex, id = Player.GetInfo()
 	CFT_GLOBALS.g_charId = id;
 	CFT_GLOBALS.d_resource_types  = Game.GetResourceTypesList();
-	
-	WORKBENCH_UPDATE_URL = API_HOST.."/api/v3/characters/"..CFT_GLOBALS.g_charId.."/manufacturing/workbenches";
 	
 	local parent_to_child = {}
 	for _, data in pairs(CFT_GLOBALS.d_resource_types ) do
@@ -1023,7 +1013,7 @@ function OnOpen()
 	
 	Component.GenerateEvent("MY_FOSTER_CHAT_TAB", {foster="CraftingEnvironment:CHAT_PANEL", fosterheight=(CHAT_PANEL:GetBounds().height)})
 	UpdateInventory(0);
-	UpdateWorkbench();
+	DelayedWorkbenchUpdate(0);
 	--InitializeCylinders()
 	
 	w_ItemToolTip = LIB_ITEMS.CreateToolTip(Component.GetWidget("tooltip_container"));
@@ -1043,7 +1033,8 @@ function OnOpen()
 	d_interaction_guid = math.random(100000000);
 	HTTP.IssueRequest(API_HOST.."/api/v3/ui_actions", "POST", {{screen="crafting", action="open", screen_reference_id=d_interaction_guid}});
 	
-	UpdatePleaseWait();
+	HideMouseBlock(); -- in case this is visible close it 
+	UpdateWorkbench();
 end
 
 function OnEscape()
@@ -1121,17 +1112,17 @@ function FindItemsForInput(INPUT)
 	local attribute_map = d_current_recipe.attribute_map
 	if( INPUT.MATERIALTYPE and INPUT.MATERIALTYPE > 0) then
 		local valid_resc_types = CFT_ValidResourceTypes(INPUT.MATERIALTYPE);
-
+		
 		local valid_itemtypes = {};
 		for t=1, #valid_resc_types do
-			if( (not attribute_map and INPUT.MATERIALTYPE ~= OPTIONAL_COMPONENT_TYPE) or 
-				(attribute_map and attribute_map[ tostring(valid_resc_types[t] )]) ) then
+			if( not attribute_map or attribute_map[ tostring(valid_resc_types[t] )] ) then
 				table.insert( valid_itemtypes, valid_resc_types[t] )
 			end
 		end
 		table.insert( valid_itemtypes, INPUT.MATERIALTYPE)
 		-- prevent players from selection the same input type in optional input slots
 		-- if they do, the second optional component will be accepted.
+		local OPTIONAL_COMPONENT_TYPE = 1920;
 		if( INPUT.MATERIALTYPE == OPTIONAL_COMPONENT_TYPE ) then 
 			for id, ENTRY in pairs(INPUT_ENTRIES) do
 				if(ENTRY and ENTRY ~= INPUT and ENTRY.MATERIALTYPE == OPTIONAL_COMPONENT_TYPE and ENTRY.ITEM)then
@@ -1312,7 +1303,7 @@ function OnInputMenuItemSelect(args)
 	elseif(d_SelectedInputItem and d_SelectedInputItem == menu_entry) then	
 		local quantity = menu_entry.available_quantity;
 		if(d_SelectedInputItem == g_SelectedInput.ITEM )then
-			quantity = quantity + g_SelectedInput.QUANTITY
+			quantity = quantity+ g_SelectedInput.QUANTITY
 		end
 		if( g_SelectedInput.INPUT_REQ.unlimited and current_quantity ~= quantity) then
 			use_resource = false;
@@ -1388,19 +1379,18 @@ function OnUseResourceEnter()
 end
 
 function OnUseResource()
+	local new_quantity = tonumber(INPUT_MENU_QUANTITY:GetText());
 	if( not d_SelectedInputItem) then
 		UpdateInputInfo( g_SelectedInput, nil, 0 );
 	elseif(g_SelectedInput.INPUT_REQ.unlimited) then
-		local current_quantity = tonumber(INPUT_MENU_QUANTITY:GetText());
-		if( current_quantity == 0 ) then
+		if( new_quantity == 0 ) then
 			UpdateInputInfo( g_SelectedInput, nil, 0 );
 		else
-			UpdateInputInfo( g_SelectedInput, d_SelectedInputItem, current_quantity );
+			UpdateInputInfo( g_SelectedInput, d_SelectedInputItem, new_quantity );
 		end
-	elseif( d_SelectedInputItem ~= g_SelectedInput.ITEM ) then
+	else
 		UpdateInputInfo( g_SelectedInput, d_SelectedInputItem );
 	end
-	
 	PreviewItem();
 	ShowManufactureBtn();
 	HideMenu();
@@ -1706,8 +1696,10 @@ function OnManufactureLeave()
 end
 
 function OnManufactureRequest()
-	MANUFACTURE_BTN:Hide();	
-	System.PlaySound("Play_UI_Beep_43");
+	MANUFACTURE_BTN:Hide();
+	
+	System.PlaySound("Play_SFX_WebUI_Equip_Battleframe");
+	
 	if( not d_current_recipe ) then
 		warn("no selected recipe");
 		return;
@@ -1744,8 +1736,6 @@ function OnManufactureRequest()
 				item_info.quantity = INPUT.QUANTITY;
 				item_info.output_idx = INPUT.OUTPUT_IDX;
 				items[INPUT.OUTPUT_IDX]= item_info;
-				-- zero out Input quantity so we don't try to "return" it to the pool when switching recipes
-				INPUT.QUANTITY = 0;
 			elseif( INPUT.OUTPUT_IDX ) then
 				items[INPUT.OUTPUT_IDX]={output_idx = INPUT.OUTPUT_IDX, item_id=0, quantity=0, item_sdb_id=0};
 			end
@@ -1753,7 +1743,9 @@ function OnManufactureRequest()
 	end
 	
 	table.sort(items, function(a,b)return a.output_idx < b.output_idx end)
-	CFT_ManufactureRequest( d_selected_recipe.id, d_current_recipe.inputs, items, workbench.data.workbench_guid, ManufactureResponse, d_num_parallel_builds );
+	if( CFT_ManufactureRequest( d_selected_recipe.id, d_current_recipe.inputs, items, workbench.data.workbench_guid, ManufactureResponse, d_num_parallel_builds ) ) then
+		PlayDialog( { "Play_ManufacturingStarted_01", "Play_ManufacturingStarted_02", "Play_ManufacturingStarted_03" } );
+	end
 end
 
 
@@ -1822,7 +1814,7 @@ function OnWBCancelRequest(args)
 	
 	local url = API_HOST.."/api/v3/characters/"..CFT_GLOBALS.g_charId.."/manufacturing/workbenches/"..workbench.data.workbench_guid.."/cancel";		
 	SendHTTPRequest(url, "POST", args, OnWBCancelRequestResponse );
-	UpdatePleaseWait();
+	ShowMouseBlock();
 
 	local recipe = CFT_FindRecipe(workbench.data.blueprint_id);
 	if( recipe and recipe.unavailable ) then
@@ -1831,7 +1823,7 @@ function OnWBCancelRequest(args)
 		DisplayRecipes();
 	end
 
-	if(g_workbenchPreview == WB)then
+	if(g_workbenchPreview)then
 		SelectRecipe(nil);
 	end
 	HideMenu();
@@ -1845,7 +1837,7 @@ function OnWBCancelRequestResponse(args, err)
 		return;
 	end
 	
-	UpdateWorkbench(0.5);
+	UpdateWorkbench();
 	UpdateInventory();
 end
 
@@ -1854,14 +1846,12 @@ function OnWBUnloadRequest( workbench )
 	HideMenu();
 	local url = API_HOST.."/api/v3/characters/"..CFT_GLOBALS.g_charId.."/manufacturing/workbenches/"..workbench.data.workbench_guid.."/unload";		
 	SendHTTPRequest(url, "POST", args, OnWBUnloadRequestResponse );
-	UpdatePleaseWait();
+	ShowMouseBlock();
 	
 	g_selected_workbench = nil
 end
 
-function OnWBUnloadRequestResponse(args, err)
-	g_waiting_for_mark_complete = false;
-	UpdatePleaseWait();
+function OnWBUnloadRequestResponse(args, err)	
 	if( err ) then
 		-- something failed unloading
 		-- the player will need to submit the unload request again
@@ -1929,6 +1919,8 @@ function OnWBUnloadRequestResponse(args, err)
 		end);
 				
 		Component.GenerateEvent("MY_CFT_REWARD_DISPLAY", {output=tostring(d_output), best_item=tostring(best_item), blueprint_id = args.blueprint_id, research_recipes = tostring(research_recipes)});
+		g_waiting_for_mark_complete = false;
+		UpdatePleaseWait();
 	
 		FRAME:Hide();
 		BG_FRAME:Hide();
@@ -1980,7 +1972,7 @@ function OnRewardScreenHide()
 	
 	SelectRecipe(d_selected_recipe);
 	
-	UpdateWorkbench();
+	HideMouseBlock();
 end
 
 -- unlock/purchase a workbench
@@ -2055,6 +2047,7 @@ function OnWBUnlockResponse(args, err)
 		return;
 	end
 	UpdateWorkbench();
+	g_manufacture_post_wb_update = true;
 end
 
 function OnEnterWorkbench(args)
@@ -2082,37 +2075,101 @@ function OnSelectWorkbench(args)
 		return;
 	end
 	g_PreviewItem = nil;
-	
-	local recipe = CFT_FindRecipe(bench.data.blueprint_id);
-	SelectRecipe(recipe);
 	g_workbenchPreview = WB;
-	if( recipe ) then
+	local recipe = CFT_FindRecipe(bench.data.blueprint_id);
+	if( recipe ) then	
+		HideInputs();
+		d_selected_recipe = recipe;
+		DisplayRecipes(); -- update highlight
+		d_CompareItemCount = 0;
+		d_compare_item_info = nil;
+		
 		CRAFTING_TIME:Hide(); -- update to display actual timer
-		for id, INPUT_ENTRY in pairs(INPUT_ENTRIES)do
-			if(INPUT_ENTRY.INPUT_REQ)then
-				local out_index = tostring(INPUT_ENTRY.INPUT_REQ.output_index - 1);
-				local ITEM = bench.data.inputs[out_index][1];
-				if ( INPUT_ENTRY.MATERIALTYPE ~= 0 ) then
-					if( ITEM ) then
-						ITEM.root_info = Game.GetRootItemInfo(ITEM.item_type);
-						ITEM.itemInfo = Game.GetItemInfoByType( ITEM.item_sdb_id, ITEM.attribute_modifiers );
-						ITEM.item_sdb_id = ITEM.root_info.sdb_id
-						UpdateInputInfo( INPUT_ENTRY, ITEM, ITEM.quantity )
-					else
-						UpdateInputInfo( INPUT_ENTRY, nil, 0 )
-					end
-				else
-					ITEM.root_info = Game.GetRootItemInfo(INPUT_ENTRY.ITEMTYPE);
-					ITEM.itemInfo = Game.GetItemInfoByType( ITEM.item_sdb_id, ITEM.attribute_modifiers );
-					UpdateInputInfo( INPUT_ENTRY, ITEM, ITEM.quantity )	
-				end
+		
+		
+		-- JSU
+		if (not w_MODELS.MAIN or not w_MODELS.MAIN:IsValid()) then
+			if (w_MODELS.MAIN) then
+				w_MODELS.MAIN:Destroy();
+				w_MODELS.MAIN = nil;
 			end
+			w_MODELS.MAIN = SinvironmentModel.Create();
+		end
+		w_MODELS.MAIN:LoadItemType(d_selected_recipe.id);
+		w_MODELS.MAIN:GetAnchor():SetParam("translation", {x=0, y=0, z=3.1});
+		w_MODELS.MAIN:Normalize(.75);
+		w_MODELS.MAIN:AutoSpin(.15);
+		w_MODELS.MAIN:Show(true);
+		
+		SetScrollText(d_selected_recipe.description, DESCRIPTION_TEXT, DESCRIPTION_SCROLL, DESC_ROW);
+		
+		ITEM_NAME:SetText( d_selected_recipe.name );
+		local text_dims = ITEM_NAME:GetTextDims();
+		ITEM_NAME_BG:SetDims( "height:"..text_dims.height.."; width:"..text_dims.width);
+		
+		d_current_recipe = Game.GetRecipe( d_selected_recipe.id );
+		UpdateParallelBuildCount( 1 );
+		
+		if( d_current_recipe.max_parallel > 1 )  then
+			NUM_PARALLEL_SLIDER:Hide()
+			NUM_PARALLEL:Show();
+		else
+			NUM_PARALLEL:Hide();
 		end
 		
+		local index = 1;
+		local INPUT_ENTRY = INPUT_ENTRIES[index];
+		for i, input in pairs(d_current_recipe.inputs) do
+			if ( input.material_type ~= 0 ) then
+				INPUT_ENTRY.MATERIALTYPE = input.material_type;
+				INPUT_ENTRY.INPUT_REQ = input;
+				local ITEM = bench.data.inputs[tostring(i-1)][1];
+				if( ITEM ) then
+					ITEM.root_info = Game.GetRootItemInfo(ITEM.item_type);
+					ITEM.itemInfo = Game.GetItemInfoByType( ITEM.item_sdb_id, ITEM.attribute_modifiers );
+									
+					ITEM.item_sdb_id = ITEM.root_info.sdb_id
+					
+					local name = input.material_type;
+					INPUT_ENTRY.OUTPUT_IDX = input.output_index;
+					INPUT_ENTRY.GROUP:Show();
+					UpdateInputInfo( INPUT_ENTRY, ITEM, ITEM.quantity )
+				else
+					UpdateInputInfo( INPUT_ENTRY, nil, 0 )
+				end
+											
+				index = index + 1;
+				INPUT_ENTRY = INPUT_ENTRIES[index];
+			end
+		end
+		for i, input in pairs(d_current_recipe.inputs) do
+			local found = false;
+			local ITEM = bench.data.inputs[tostring(i-1)][1];
+			if ( input.item_type ~= 0 ) then
+				ITEM.root_info = Game.GetRootItemInfo(input.item_type);
+				ITEM.itemInfo = Game.GetItemInfoByType( ITEM.item_sdb_id, ITEM.attribute_modifiers );
+				
+				INPUT_ENTRY.GROUP:Show();
+				INPUT_ENTRY.ITEMTYPE = input.item_type;
+				INPUT_ENTRY.UNLIMITED = input.unlimited;
+				INPUT_ENTRY.INPUT_REQ = input;
+				UpdateInputInfo( INPUT_ENTRY, ITEM, ITEM[1].quantity )		
+				INPUT_ENTRY.OUTPUT_IDX = input.output_index;
+				INPUT_ENTRY.GROUP:Show();
+			end
+			index = index + 1;
+			INPUT_ENTRY = INPUT_ENTRIES[index];
+		end
+		
+		d_CompareItemCount = DisplayCompare();
+		if( d_CompareItemCount > 0 ) then
+			COMPARE_GROUP:Show();
+		end
 		PreviewItem();
 	end
 	
 	MANUFACTURE_BTN:Hide();
+	
 end
 
 -- COMPARE EVENTS
@@ -2122,21 +2179,22 @@ function OnCompare()
 	if( current_menu ~= COMPARE_MENU ) then
 		HideMenu();
 	else
+		HideMenu();
 		return;
 	end
 		
+	g_CompareOffset = 0;
+	d_compare_item_info = nil;
+	TextFormat.Clear(COMPARE_MENU_TEXT);
+	COMPARE_MENU_TEXT:SetTextColor("#FFFFFF");
+	COMPARE_MENU_TEXT:SetTextKey("CRAFTING_NOTHING");
 	if( not d_selected_recipe ) then
-		g_CompareOffset = 0;
-		d_compare_item_info = nil;
-		TextFormat.Clear(COMPARE_MENU_TEXT);
-		COMPARE_MENU_TEXT:SetTextColor("#FFFFFF");
-		COMPARE_MENU_TEXT:SetTextKey("CRAFTING_NOTHING");
 		return;
 	end
 	
 	if( d_selected_recipe.outputs ) then
 		DisplayStats();
-		DisplayCompare();
+		d_CompareItemCount = DisplayCompare();
 		if( d_CompareItemCount > 0 ) then
 			COMPARE_MENU:Show();
 			current_menu = COMPARE_MENU;
@@ -2175,15 +2233,9 @@ function OnCompareSlotSelect(args)
 	d_compare_item_info = ITEM;
 	
 	DisplayStats();
-	if(d_compare_item_info)then
-		local TF = TextFormat.Create();
-		TF:Concat( LIB_ITEMS.GetNameTextFormat(ITEM.root_info, {quantity = ITEM.quantity, quality = ITEM.quality}));
-		TF:ApplyTo( COMPARE_MENU_TEXT );
-	else
-		TextFormat.Clear(COMPARE_MENU_TEXT);
-		COMPARE_MENU_TEXT:SetTextColor("#FFFFFF");
-		COMPARE_MENU_TEXT:SetTextKey("CRAFTING_NOTHING");
-	end
+	local TF = TextFormat.Create();
+	TF:Concat( LIB_ITEMS.GetNameTextFormat(ITEM.root_info, {quantity = ITEM.quantity, quality = ITEM.quality}));
+	TF:ApplyTo( COMPARE_MENU_TEXT );
 	HideMenu();
 end
 
@@ -2398,20 +2450,20 @@ function ResolutionUpdate()
 		WB.BUTTON:SetTag(tag_value);
 		WB.RB_BUTTON =  WB.GROUP:GetChild("rb_icon");
 		WB.RB_TEXT =  WB.RB_BUTTON:GetChild("text");
-		WB.ANCHOR_WIDG = WB.GROUP:GetChild("anchor");
-		WB.ANCHOR_WIDG:SetTag( tostring(i) );
-		WB.ANCHOR_WIDG:ScaleToBounds(true);
+		WB.ANCHOR = WB.GROUP:GetChild("anchor");
+		WB.ANCHOR:SetTag( tostring(i) );
+		WB.ANCHOR:ScaleToBounds(true);
 		
 		WB.PLATE = {SCOBJ=Component.CreateSceneObject("GUI_Icon_Plate_001")};
 		WB.PLATE.ANCHOR = WB.PLATE.SCOBJ:GetAnchor();
-		WB.PLATE.ANCHOR:SetParent(WB.ANCHOR_WIDG:GetAnchor());
-		--WB.PLATE.ANCHOR:SetParent(WB.ANCHOR_WIDG);
+		WB.PLATE.ANCHOR:SetParent(WB.ANCHOR:GetAnchor());
+		--WB.PLATE.ANCHOR:SetParent(WB.ANCHOR);
 		--WB.PLATE.ANCHOR:SetParam("translation", {x=0,y=0,z=0} );
 		--WB.PLATE.ANCHOR:SetParam("scale", {x=0.5,y=0.5,z=0.5});
 		--WB.PLATE.ANCHOR:SetParam("rotation", {axis={x=1,y=0,z=0}, angle=80} );
 		WB.PLATE.SCOBJ:SetParam("tint", "#247CBD");
 		WB.PLATE.SCOBJ:SetParam("alpha", 0.2);
-		--WB.PLATE.SCOBJ:SetAutoScale("fit");
+		WB.PLATE.SCOBJ:SetAutoScale("fit");
 		WB.PLATE.SCOBJ:Hide();
 		
 		WB.VIP = WB.GROUP:GetChild("VIP");
@@ -2608,13 +2660,11 @@ end
 function HideInputs()
 	for _,INPUT in pairs(INPUT_ENTRIES) do
 		if( INPUT.ITEM ) then
-			if( INPUT.ITEM.available_quantity) then
+			if( INPUT.ITEM ~= ITEM and INPUT.ITEM.available_quantity) then
 				INPUT.ITEM.available_quantity = INPUT.ITEM.available_quantity + INPUT.QUANTITY;
 				-- check that we go over the item quanitity
 				if( INPUT.ITEM.available_quantity > INPUT.ITEM.quantity ) then
-					warn("unallocated resources ("..(INPUT.ITEM.available_quantity)..
-						") exceeds known available resources ("..(INPUT.ITEM.quantity)..
-						") of "..tostring(INPUT.ITEM.root_info.name))
+					warn("Adding back more than available!")
 					INPUT.ITEM.available_quantity = INPUT.ITEM.quantity;
 				end
 				INPUT.QUANTITY = 0;
@@ -2647,6 +2697,8 @@ function HideRecipe()
 	HideMenu();
 	HideInputs();
 
+	d_CompareItemCount = 0;
+	d_compare_item_info = nil;
 	COMPARE_GROUP:Hide();
 	TextFormat.Clear(COMPARE_MENU_TEXT);
 	COMPARE_MENU_TEXT:SetTextColor("#FFFFFF");
@@ -2693,6 +2745,7 @@ function SelectRecipe(recipe)
 	HideInputs();
 
 	d_selected_recipe = recipe;
+		
 	if( not d_selected_recipe and d_tutorial_recipe) then
 		d_selected_recipe = CFT_FindRecipe(d_tutorial_recipe);
 	end
@@ -2702,6 +2755,12 @@ function SelectRecipe(recipe)
 	end
 	
 	DisplayRecipes(); -- update highlight
+	d_CompareItemCount = 0;
+	d_compare_item_info = nil;
+	COMPARE_GROUP:Hide();
+	TextFormat.Clear(COMPARE_MENU_TEXT);
+	COMPARE_MENU_TEXT:SetTextColor("#FFFFFF");
+	COMPARE_MENU_TEXT:SetTextKey("CRAFTING_NOTHING");
 
 	CRAFTING_TIME:Hide();
 	
@@ -2734,11 +2793,6 @@ function SelectRecipe(recipe)
 		NUM_PARALLEL:Hide();
 		INPUTS.GROUP:Hide();
 		CRAFT_TIP:Show();
-		
-		TextFormat.Clear(COMPARE_MENU_TEXT);
-		COMPARE_MENU_TEXT:SetTextColor("#FFFFFF");
-		COMPARE_MENU_TEXT:SetTextKey("CRAFTING_NOTHING");
-		
 		return;
 	end
 	
@@ -2759,7 +2813,10 @@ function SelectRecipe(recipe)
 	
 	SetScrollText(d_selected_recipe.description, DESCRIPTION_TEXT, DESCRIPTION_SCROLL, DESC_ROW);
 	
-	UpdateCompare();
+	d_CompareItemCount = DisplayCompare();
+	if( d_CompareItemCount > 0 ) then
+		COMPARE_GROUP:Show();
+	end
 	
 	-- JSU
 	if (not w_MODELS.MAIN or not w_MODELS.MAIN:IsValid()) then
@@ -2797,11 +2854,6 @@ function SelectRecipe(recipe)
 	MANUFACTURE_BTN:Show();
 
 	d_current_recipe = Game.GetRecipe( d_selected_recipe.id );
-	
-	if( not d_current_recipe ) then
-		error("Invalid recipe");
-	end
-	
 	UpdateParallelBuildCount( 1 );
 	if( d_current_recipe.max_parallel > 1 )  then
 		NUM_PARALLEL_SLIDER:Show()
@@ -2815,8 +2867,6 @@ function SelectRecipe(recipe)
 	end
 	
 	INPUTS.GROUP:Show();
-	
-	local check_for_map = false;
 	local index = 1;
 	local INPUT_ENTRY = INPUT_ENTRIES[index];
 	for _, input in pairs(d_current_recipe.inputs) do
@@ -2836,15 +2886,7 @@ function SelectRecipe(recipe)
 									
 			index = index + 1;
 			INPUT_ENTRY = INPUT_ENTRIES[index];
-			
-			if( OPTIONAL_COMPONENT_TYPE == input.material_type ) then
-				check_for_map = true;
-			end
 		end
-	end
-	
-	if( check_for_map and not d_current_recipe.attribute_map ) then
-		warn("Recipe is missing attribute map data!")
 	end
 	
 	for _, input in pairs(d_current_recipe.inputs) do
@@ -3020,31 +3062,8 @@ end
 -- INVENTORY FUNCTIONS
 local g_waiting_craft_response = false;
 local g_waiting_bag_response = false;
-function SendInventoryUpdateRequest()	
-	d_inventory = {}
-
-	-- set these flags, or else the response handlers won't populate the inventory cache!
-	g_waiting_craft_response = true;
-	g_waiting_bag_response = true;
-
-	WebCache.Request(BAG_UPDATE);
-	WebCache.Request(CRAFTING_UPDATE);
-	WebCache.Request(GEAR_UPDATE);
-
-	Wallet.Refresh();
-	
-	callback( UpdatePleaseWait, nil, 0.2);
-end
-
 function UpdateInventory( delay )
-	if( cb_inv_update ) then
-		cancel_callback( cb_inv_update );
-		cb_inv_update = nil;
-	end
-	
-	if( not delay ) then
-		SendInventoryUpdateRequest();
-	else
+	if( not cb_inv_update ) then
 		local dur = 0.5;
 		if( delay ) then
 			dur = delay;
@@ -3052,9 +3071,14 @@ function UpdateInventory( delay )
 		
 		cb_inv_update = callback( function()
 			cb_inv_update = nil;
+			d_inventory = {}
 			
-			SendInventoryUpdateRequest();
+			WebCache.Request(BAG_UPDATE);
+			WebCache.Request(CRAFTING_UPDATE);
+			WebCache.Request(GEAR_UPDATE);
 			
+			Wallet.Refresh();
+			Player.RefreshInventory();
 			g_waiting_craft_response = true;
 			g_waiting_bag_response = true;
 		end, nil, dur );
@@ -3203,25 +3227,18 @@ function PreviewItem()
 		error( "no recipe to preivew" )
 		return;
 	end
+	
 	local items = {}
 	for c = 1, #INPUT_ENTRIES do
 		local INPUT = INPUT_ENTRIES[c];
 		local ITEM = INPUT.ITEM;
 		if( INPUT.INPUT_REQ ) then
 			if( ITEM ) then
-				local stat_name = "";
-				local stat_value = ITEM.quality;
-							
-				if( INPUT.INPUT_REQ.resource_type > 0 ) then
-					stat_name = "stat"..INPUT.INPUT_REQ.resource_type;
-					stat_value = ITEM[stat_name];
-				end
 				local item_info = {};
 				item_info.item_sdb_id = ITEM.item_sdb_id;
 				item_info.item_id = ITEM.item_id;
 				item_info.resource_type = ITEM.resource_type;
 				item_info.quantity = INPUT.QUANTITY;
-				item_info.quality = stat_value;
 				item_info.output_idx = INPUT.OUTPUT_IDX;
 				items[INPUT.OUTPUT_IDX]= item_info;
 			elseif( INPUT.OUTPUT_IDX ) then
@@ -3494,11 +3511,7 @@ function DisplayOutputPreview()
 		
 		UpdateStats(g_PreviewItem);
 		DisplayStats();
-		if( d_CompareItemCount > 0 ) then
-			COMPARE_GROUP:Show();
-		else
-			COMPARE_GROUP:Hide();
-		end
+		COMPARE_GROUP:Show();
 		DESCRIPTION:Show();
 		OUTPUT:Show();
 	end
@@ -3563,9 +3576,6 @@ function ManufactureResponse( args, err )
 		WebResponseFailure( err, Component.LookupText("CRAFTING_BUILD_ERR"), function() 	MANUFACTURE_BTN:Show(); COMPONENT_TIP:Hide(); end );
 		return;
 	end
-		
-	System.PlaySound("Play_SFX_WebUI_Equip_Battleframe");
-	PlayDialog( { "Play_ManufacturingStarted_01", "Play_ManufacturingStarted_02", "Play_ManufacturingStarted_03" } );
 	
 	-- update local inventory
 	for c = 1, #INPUT_ENTRIES do
@@ -3593,7 +3603,7 @@ function ManufactureResponse( args, err )
 	SelectRecipe( nil );
 	DisplayRecipes();
 	
-	UpdateWorkbench(0.5);
+	UpdateWorkbench();
 	UpdateInventory(0.5);
 end
 
@@ -3767,34 +3777,23 @@ end
 
 -- WORKBENCH FUNCTIONS
 function SendWorkbenchUpdateRequest()
-	if( not WORKBENCH_UPDATE_URL ) then
-		error("Workbench update url not set.")
-	end
-	
-	g_waiting_for_workbench_update = true;
-	SendHTTPRequest(WORKBENCH_UPDATE_URL, "GET", nil, WorkbenchResponse, true);
-	callback( UpdatePleaseWait, nil, 0.2);
+	local url = API_HOST.."/api/v3/characters/"..CFT_GLOBALS.g_charId.."/manufacturing/workbenches";
+	SendHTTPRequest(url, "GET", nil, WorkbenchResponse);
 end
 
 function UpdateWorkbench(delay)
-	-- ignore any update requests if we're already waiting for a response
-	if( not WORKBENCH_UPDATE_URL ) then
-		error("Workbench update url not set.")
-	end
-	if(HTTP.IsRequestPending(WORKBENCH_UPDATE_URL) )then
-		warn("UpdateWorkbench response is pending")
-		return;
-	end
-	
 	if( cb_wb_update ) then
 		cancel_callback( cb_wb_update );
 		cb_wb_update = nil;
 	end
 	
-	if( not delay ) then
-		SendWorkbenchUpdateRequest();
-		Wallet.Refresh();
-	else
+	SendWorkbenchUpdateRequest();
+	
+	Wallet.Refresh();
+end
+
+function DelayedWorkbenchUpdate(delay)
+	if( not cb_wb_update ) then
 		local dur = 0.1;
 		if( delay ) then
 			dur = delay;
@@ -3803,21 +3802,23 @@ function UpdateWorkbench(delay)
 		cb_wb_update = callback( function()
 				cb_wb_update = nil;
 				SendWorkbenchUpdateRequest();
-				Wallet.Refresh();
 			end, nil, dur );
 		
 		if( dur <= 0.01 ) then
 			cb_wb_update = nil;
 		end
+		
+		Wallet.Refresh();
+	else
+		warn("Attempting to Update Workbench with pending call.")
 	end
 end
 
 function WorkbenchResponse(args, err)
-	g_waiting_for_workbench_update = false;
 	if( err ) then
 		-- can't craft without workbenches
 		if( g_wb_update_attempts <= 5 ) then
-			UpdateWorkbench( g_wb_update_attempts * g_wb_update_attempts * 5);
+			DelayedWorkbenchUpdate( g_wb_update_attempts * g_wb_update_attempts * 5);
 			g_wb_update_attempts = g_wb_update_attempts + 1;
 			warn("Workbench Update Failed: retry "..g_wb_update_attempts)
 		else
@@ -3913,9 +3914,7 @@ function UpdateInputInfo( INPUT, ITEM, NEW_QUANTITY )
 			INPUT.ITEM.available_quantity = INPUT.ITEM.available_quantity + INPUT.QUANTITY;
 			-- check that we go over the item quanitity
 			if( INPUT.ITEM.available_quantity > INPUT.ITEM.quantity ) then
-				warn("unallocated resources ("..(INPUT.ITEM.available_quantity)..
-					") exceeds known available resources ("..(INPUT.ITEM.quantity)..
-					") of "..tostring(INPUT.ITEM.root_info.name))
+				warn("Adding back more than available!")
 				INPUT.ITEM.available_quantity = INPUT.ITEM.quantity;
 			end
 			INPUT.QUANTITY = 0;
@@ -4005,7 +4004,7 @@ function UpdateInputInfo( INPUT, ITEM, NEW_QUANTITY )
 		else
 			-- load placeholder for material
 
-
+			warn("no item type for "..tostring(INPUT.INPUT_REQ));
 
 			SINMODEL:LoadItemType('10');
 		end
@@ -4170,7 +4169,6 @@ function UpdateWorkbenchData()
 						local item = Game.GetRootItemInfo(bench.data.blueprint_id)
 						Component.GenerateEvent("MY_NOTIFY", {text=Component.LookupText("CRAFTING_COMPLETE", item.name)});
 					end
-					time_left = 0.1
 				else
 					bench.build_complete = false;
 					if( time_left > 3600 * 24 ) then
@@ -4189,8 +4187,8 @@ function UpdateWorkbenchData()
 	if( play_complete_sound ) then
 		PlayDialog( { "Play_ManufacturingEnded_01", "Play_ManufacturingEnded_02", "Play_ManufacturingEnded_03" } )
 	end
-	if( min_time > 0 )then
-		UpdateWorkbench( math.min(min_time, 3600) );
+	if( min_time > 0 and min_time < 3600 )then
+		DelayedWorkbenchUpdate(min_time);
 	end	
 end
 
@@ -4283,9 +4281,9 @@ function DisplayWorkBenches()
 							WB.BUTTON:SetTextKey("CRAFTING_UNLOAD_REQUEST");
 						end
 						WB.BUTTON:Show();
-	
+
 						WB.CANCEL:Hide();
-	
+
 					else
 						WB.PROGRESS_MASK:SetMaskDims("left:0; width:"..( (1-time_left/total_time)*100.0).."%");
 						WB.PROGRESS_MASK:MaskMoveTo( "left:0; width:100%", time_left, 0, "linear" );
@@ -4325,20 +4323,17 @@ function DisplayWorkBenches()
 					
 					if (not WB.MODEL ) then
 						WB.MODEL = SinvironmentModel.Create();
-						WB.MODEL:GetAnchor():SetParent(WB.ANCHOR_WIDG:GetAnchor())
+						WB.MODEL:GetAnchor():SetParent(WB.ANCHOR:GetAnchor())
 					elseif( not WB.MODEL:IsValid() ) then
 						WB.MODEL:Destroy();
 						WB.MODEL = nil;
 
 						WB.MODEL = SinvironmentModel.Create();
-						WB.MODEL:GetAnchor():SetParent(WB.ANCHOR_WIDG:GetAnchor());
+						WB.MODEL:GetAnchor():SetParent(WB.ANCHOR:GetAnchor());
 					end
-					local recipe_info = Game.GetRecipeInfo(data.blueprint_id);
-					local output = recipe_info.outputs[1] or {itemTypeId=0};
-					--WB.MODEL:LoadItemType(data.blueprint_id);
-					WB.MODEL:LoadItemType(output.itemTypeId);
+					WB.MODEL:LoadItemType(data.blueprint_id);
 					WB.MODEL:GetAnchor():SetParam("translation", {x=0, y=-0.05, z=0});
-					WB.MODEL:Normalize(.4);
+					WB.MODEL:Normalize(1);
 					WB.MODEL:AutoSpin(.15);
 					WB.MODEL:Show(true);
 				end
@@ -4539,7 +4534,7 @@ function CloseWorkbenchPurchaseScreen()
 end
 
 function OnVIPUpdate()
-	UpdateWorkbench(0.5);
+	DelayedWorkbenchUpdate(0.5);
 	callback(UpdateWorkbench, 0, 15);
 	callback(UpdateWorkbench, 0, 30);
 end
@@ -4753,89 +4748,56 @@ function SetScrollText( text, w_TEXT, w_SCROLLER, w_ROW )
 end
 
 -- COMPARE FUNCTIONS
-function UpdateCompare()
-	d_CompareItemCount = 0;
+function DisplayCompare()
+	local found = false;
+	local count = 0;
 	
 	local item_ids = {};
-	d_ComparableItems = {};
 	
 	for i,v in pairs(d_selected_recipe.outputs) do
 		local item_info = Game.GetRootItemInfo(v.item_id);	
 		item_ids[item_info.crafting_type_id] = true;
 	end
 	
+	for i=1, #w_CompareWidgets do
+		local WIDGET = w_CompareWidgets[i];
+		WIDGET.TEXT:SetText("");
+		TextFormat.Clear(WIDGET.TEXT);
+	end
+	
 	for i=1, #d_gear_inventory do
 		local ITEM = d_gear_inventory[i];
-		if( ITEM and ITEM.root_info and item_ids[ITEM.root_info.crafting_type_id]
-			and (ITEM.itemInfo.stats or #ITEM.itemInfo.attributes > 0) ) then
-			table.insert( d_ComparableItems, ITEM );
+		if( ITEM and  ITEM.root_info and item_ids[ITEM.root_info.crafting_type_id]) then
+			count = count + 1;
+			if( count < #w_CompareWidgets ) then
+				local WIDGET = w_CompareWidgets[count];
+				WIDGET.GROUP:Show();
+				local TF = TextFormat.Create();
+				TF:Concat( LIB_ITEMS.GetNameTextFormat(ITEM.root_info, { quality = ITEM.quality }));
+				TF:ApplyTo( WIDGET.TEXT );
+				WIDGET.ITEM = ITEM;
+				found = true;
+			end
 		end
 	end
 	
 	for i=1, #d_inventory do
 		local ITEM = d_inventory[i];
-		if( ITEM and  ITEM.root_info and item_ids[ITEM.root_info.crafting_type_id]
-			and (ITEM.itemInfo.stats or #ITEM.itemInfo.attributes > 0) ) then
-			table.insert( d_ComparableItems, ITEM );
-		end
-	end	
-	
-	d_CompareItemCount = #d_ComparableItems
-	table.sort(d_ComparableItems,
-		function( a, b )
-			if( not a or not a.quality ) then
-				return true;
-			elseif( not b or not b.quality )then
-				return false;
+		if( ITEM and  ITEM.root_info and item_ids[ITEM.root_info.crafting_type_id]) then
+			count = count + 1;
+			if( count < #w_CompareWidgets ) then
+				local WIDGET = w_CompareWidgets[count];
+				WIDGET.GROUP:Show();
+				local TF = TextFormat.Create();
+				TF:Concat( LIB_ITEMS.GetNameTextFormat(ITEM.root_info, { quality = ITEM.quality }));
+				TF:ApplyTo( WIDGET.TEXT );
+				WIDGET.ITEM = ITEM;
+				found = true;
 			end
-			return a.quality > b.quality;
-		end
-		)
-	
-	if( d_CompareItemCount > 0 ) then
-		COMPARE_GROUP:Show();
-	else
-		COMPARE_GROUP:Hide();
-	end
-	
-	if( d_compare_item_info and not item_ids[d_compare_item_info.root_info.crafting_type_id])then
-		d_compare_item_info = nil;
-		TextFormat.Clear(COMPARE_MENU_TEXT);
-		COMPARE_MENU_TEXT:SetTextColor("#FFFFFF");
-		COMPARE_MENU_TEXT:SetTextKey("CRAFTING_NOTHING");
-	end
-end
-
-function DisplayCompare()
-	local found = false;
-	local count = 0;
-
-	local start = 1;
-	if( g_CompareOffset == 0 )then
-		start = 2;
-		local WIDGET = w_CompareWidgets[1];
-		WIDGET.GROUP:Show();
-		TextFormat.Clear(WIDGET.TEXT);
-		WIDGET.TEXT:SetTextColor("#FFFFFF");
-		WIDGET.TEXT:SetTextKey("CRAFTING_NOTHING");
-		WIDGET.ITEM = nil;
-	end
-	
-	for i=start, #w_CompareWidgets do
-		local WIDGET = w_CompareWidgets[i];
-		local ITEM = d_ComparableItems[i-1+g_CompareOffset];
-		if( ITEM ) then
-			WIDGET.GROUP:Show();
-			local TF = TextFormat.Create();
-			TF:Concat( LIB_ITEMS.GetNameTextFormat(ITEM.root_info, {quality = ITEM.quality}) );
-			TF:ApplyTo( WIDGET.TEXT );
-			WIDGET.ITEM = ITEM;
-		else
-			WIDGET.GROUP:Hide();
-			WIDGET.TEXT:SetText("");
-			TextFormat.Clear(WIDGET.TEXT);
 		end
 	end
+	
+	return count;
 end
 
 -- WEB FUNCTIONS
@@ -4843,8 +4805,8 @@ function SendHTTPRequest( url, cmd, args, response_func, queue )
 	if( g_keep_closed ) then
 		return;
 	end
-	local pending = HTTP.IsRequestPending(url);
-	if( pending and queue)then
+	
+	if( HTTP.IsRequestPending(url) and queue)then
 		-- remove similar pending calls
 		for i=1, #g_request_queue do
 			if( g_request_queue[i].url == url )then
@@ -4858,7 +4820,7 @@ function SendHTTPRequest( url, cmd, args, response_func, queue )
 		if( not cb_request ) then
 			ProcessRequestQueue();
 		end
-	elseif( not pending ) then
+	else
 		HTTP.IssueRequest(url, cmd, args, response_func);
 	end
 end
@@ -4882,16 +4844,20 @@ function ProcessRequestQueue()
 	end
 end
 
+
+function ShowMouseBlock()
+	VisualSlotter.Activate(true);
+	VisualSlotter.PleaseWait(Component.LookupText("SYNCING_WITH_SIN"));
+	MOUSE_BLOCK:ParamTo("alpha", 0.5, 0.25);
+	MOUSE_BLOCK:Show(true);
+	UpdatePleaseWait();
+end
+
 function HideMouseBlock()
 	VisualSlotter.Activate(false);
 	VisualSlotter.PleaseWait(false);
 	MOUSE_BLOCK:QueueParam("alpha", 0, 0.1);
 	MOUSE_BLOCK:Show(false, 0.1 );
-	
-	if( cb_please_wait ) then
-		cancel_callback( cb_please_wait );
-		cb_please_wait = nil
-	end
 end
 
 function UpdatePleaseWait()
@@ -4903,20 +4869,11 @@ end
 function PleaseWaitCallback()
 	cb_please_wait = nil;
 	
-	local function ShowMouseBlock()
-		VisualSlotter.Activate(true);
-		VisualSlotter.PleaseWait(Component.LookupText("SYNCING_WITH_SIN"));
-		MOUSE_BLOCK:ParamTo("alpha", 0.5, 0.25);
-		MOUSE_BLOCK:Show(true);
-		UpdatePleaseWait();
-	end
-	
-	-- we don't need to check for g_waiting_for_mark_complete or g_waiting_for_workbench_update, since the pending url response checks below will do it
-	if (WebCache.IsRequestPending(WORKBENCH_UPDATE_URL)) then
+	if( g_waiting_for_mark_complete ) then
 		ShowMouseBlock();
 		return;
 	end
-
+	
 	-- ignore if only waiting for the item preview response 
 	local urls_to_wait = { API_HOST.."/api/v3/characters/"..CFT_GLOBALS.g_charId.."/manufacturing/workbenches" }					
 	for _,bench in pairs(d_workbenches) do
@@ -4946,9 +4903,8 @@ end
 
 local cb_keep_closed = nil;
 function WebResponseFailure( err, ui_message, response_func )
-	HideMouseBlock();
-	
 	if( FRAME:IsVisible() )then
+		g_waiting_for_mark_complete = false;
 		HideMouseBlock();
 		if( --[[err.status == 500 or]] err.data.code == "ERR_UNKNOWN" 
 			or err.status == 403 and err.data.code == "ERR_NOT_ONLINE") then
@@ -4957,7 +4913,6 @@ function WebResponseFailure( err, ui_message, response_func )
 			
 			if( cb_request ) then
 				cancel_callback( cb_request );
-				cb_request = nil;
 			end
 			
 			g_request_queue = {};
@@ -4993,7 +4948,6 @@ function WebResponseFailure( err, ui_message, response_func )
 			if( g_wb_update_attempts == 0 ) then
 				if( cb_request ) then
 					cancel_callback( cb_request );
-					cb_request = nil;
 				end				
 				g_request_queue = {};
 				
@@ -5001,6 +4955,7 @@ function WebResponseFailure( err, ui_message, response_func )
 			end
 		end
 	end
+	UpdatePleaseWait();
 end
 
 -- SOUND FUNCTION
@@ -5051,3 +5006,4 @@ end
 function HideTooltip()
 	ToolTip.Show(nil);
 end
+
